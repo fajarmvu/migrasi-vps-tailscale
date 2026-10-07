@@ -1,0 +1,19 @@
+# Template unit systemd untuk gateway bot (mesin TUJUAN).
+# Salin ke /etc/systemd/system/, ganti <USER>, <APP_DIR>, lalu:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now app-gateway
+[Unit]
+Description=Bot gateway (Telegram)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=<USER>
+WorkingDirectory=<APP_DIR>
+EnvironmentFile=<APP_DIR>/.env
+ExecStart=<APP_DIR>/run-gateway.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,19 @@
+# Template unit systemd untuk tunnel client (mesin TUJUAN).
+# Instance: tunnel@1, tunnel@2, ... — masing-masing memegang satu jalur long-poll.
+# Ganti <USER>, <APP_DIR>.
+[Unit]
+Description=Tunnel client instance %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=<USER>
+WorkingDirectory=<APP_DIR>
+EnvironmentFile=<APP_DIR>/.tunnel-key
+ExecStart=<APP_DIR>/run-tunnel.sh --lane %i
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
