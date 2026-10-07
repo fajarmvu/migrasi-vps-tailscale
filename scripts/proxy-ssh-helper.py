@@ -6,7 +6,7 @@ Port 3130 = relay tailnet pada runtime proxy (lihat dokumentasi Tailscale);
 jangan gunakan port egress HTTPS biasa untuk alamat tailnet.
 Contoh ~/.ssh/config:
     Host vps-tujuan
-        HostName 100.64.0.1
+        HostName <IP_TAILSCALE_TUJUAN>
         User ubuntu
         ProxyCommand python3 ~/scripts/proxy-ssh-helper.py %h %p
 """
