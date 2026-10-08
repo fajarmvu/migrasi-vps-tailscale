@@ -109,6 +109,27 @@ Gunakan token status yang sama seperti README agar konsisten:
   SSH persistent sedang crash-loop, restart service agar memakai kredensial
   baru. Pola outage 2026-10-08: 08:24, 10:49, 16:06, 17:59, 20:59–21:14.
 
+### Format EnvironmentFile systemd (bug nyata)
+- File env untuk `EnvironmentFile=` di unit systemd **wajib** format
+  `VAR=nilai` per baris. Menulis URL mentah (tanpa prefix `HTTPS_PROXY=`)
+  membuat service crash-loop tiap 15 detik (`KeyError('HTTPS_PROXY')`) —
+  padahal probe SSH dari luar tetap terlihat "UP" karena memakai env shell,
+  bukan env file. Bug semacam ini lolos dari monitoring luar.
+- **Perbaikan:** selalu tulis dengan format `VAR=value`; tambahkan fallback
+  di helper proxy agar membaca env file langsung dan menerima kedua format.
+
+### Monitoring hemat token (cron agent → hook)
+- Cron yang menjalankan agent AI tiap 5 menit untuk cek rutin menghabiskan
+  token inferensi — 288 run/hari walaupun semua sehat.
+- **Pola hemat:** ganti dengan hook — script bash ringan (polling tanpa
+  token) yang hanya membangunkan agent saat ada kejadian (link down,
+  recovery, reconnect, restart service). Monitoring tetap tiap 5 menit,
+  token terpakai hanya saat benar-benar ada yang perlu ditangani.
+- Syarat: pisahkan logika "deteksi" (bash deterministik, state di file)
+  dari logika "notifikasi/keputusan" (agent). Kalau hook terbukti tidak
+  efektif (miss event, berhenti polling), kembalikan ke cron agent —
+  efektivitas di atas penghematan.
+
 ### VM diganti runtime (link mati total)
 - **Gejala:** semua koneksi mati mendadak dalam satu waktu; `uptime` VM kecil
   (baru boot); file di `/etc/systemd/system/` hilang.
