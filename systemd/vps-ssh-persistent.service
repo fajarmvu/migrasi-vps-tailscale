@@ -1,0 +1,33 @@
+# Template unit systemd: koneksi SSH persisten ke mesin tujuan via Tailscale.
+# Menjaga satu koneksi OpenSSH tetap hidup; systemd menyambung ulang otomatis
+# jika putus (Restart=always). Pelengkap — bukan pengganti — monitoring berkala.
+#
+# Cara pakai:
+#   1. Salin ke /etc/systemd/system/vps-ssh.service (atau nama lain)
+#   2. Ganti SEMUA placeholder <...> di bawah
+#   3. Buat EnvironmentFile berisi HTTPS_PROXY=... (chmod 600) bila SSH
+#      harus lewat egress proxy; hapus baris EnvironmentFile bila langsung.
+#   4. sudo systemctl daemon-reload && sudo systemctl enable --now vps-ssh
+#
+# PENTING — dua jebakan systemd:
+#   a. Tanda % WAJIB di-escape jadi %% di dalam unit file. %h/%p adalah
+#      placeholder HOST/PORT milik ssh (ProxyCommand), jadi tulis %%h %%p.
+#      Kalau tidak, systemd meng-expand-nya jadi specifier-nya sendiri.
+#   b. Di container tanpa user bus, JANGAN pakai user service
+#      (systemctl --user gagal "No medium found") — pakai system service
+#      seperti template ini.
+[Unit]
+Description=Persistent SSH to <NAMA_TUJUAN> via Tailscale
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=<PATH_ENV_FILE>
+ExecStart=/usr/bin/ssh -N -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=<PATH_KNOWN_HOSTS> -i <PATH_SSH_KEY> -o ProxyCommand="<PATH_PROXY_HELPER> %%h %%p" <USER_TUJUAN>@<IP_TAILSCALE_TUJUAN>
+Restart=always
+RestartSec=15
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target

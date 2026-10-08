@@ -51,6 +51,9 @@ jalankan prosedur rollback (tujuan berhenti dulu, sumber hidup setelahnya).
 - `systemd/` — template unit `app-gateway.service`, `model-router.service`,
   `tunnel@.service`. Ganti placeholder `<USER>`, `<APP_DIR>`, `<PORT>`,
   `<EXEC_START>` sebelum dipakai.
+- `systemd/vps-ssh-persistent.service` — koneksi SSH persisten ke mesin tujuan
+  (auto-reconnect via `Restart=always` + `ServerAliveInterval`). Pelengkap
+  monitoring berkala, bukan pengganti.
 
 ## 4. Laporan status
 
@@ -58,3 +61,38 @@ Gunakan token status yang sama seperti README agar konsisten:
 `CUTOVER_SUMBER_SIAP` / `CUTOVER_GAGAL`, `CUE_AKTIF_SEMENTARA` /
 `ROLLBACK_DIPERLUKAN`, `CUE_SIAP_PAKAI`, `MUSE_PASIF_SIAP_ROLLBACK` /
 `MUSE_AKTIF_KEMBALI`, `CUE_PASIF_ROLLBACK`.
+
+## 5. Troubleshooting (pelajaran dari lapangan, 2026-10-08)
+
+### Tailscale SSH merebut port 22
+- **Gejala:** SSH dijawab `SSH-2.0-Tailscale`, muncul
+  `# Tailscale SSH requires an additional check` + URL login. Kunci SSH biasa
+  tidak bisa dipakai.
+- **Penyebab:** Tailscale SSH aktif di mesin tujuan dan mengalahkan OpenSSH.
+- **Perbaikan (di mesin tujuan, akses langsung):**
+  `tailscale set --ssh=false && systemctl enable --now ssh`,
+  lalu pastikan `systemctl is-active ssh` = `active`.
+- **Catatan:** untuk automation (bot/monitoring), OpenSSH lebih tepat daripada
+  Tailscale SSH — Tailscale SSH butuh identitas interaktif, tidak kenal kunci
+  otomasi. Jaringan Tailscale sendiri sudah privat, jadi OpenSSH di IP
+  Tailscale sudah cukup aman.
+
+### Jaringan VPS flapping (putus-nyambung)
+- **Gejala:** SSH timeout + tunnel publik 502 bersamaan, tapi `uptime` mesin
+  tidak reset (tidak reboot).
+- **Diagnosis:** `uptime` hanya reset saat reboot — outage jaringan tidak
+  mengubahnya. Koroborasi dengan jalur independen: (1) tunnel Cloudflare 502
+  = tidak ada tunnel client yang terhubung; (2) log aplikasi di VPS menunjukkan
+  VPS itu sendiri tidak bisa mencapai internet (mis. timeout ke api.telegram.org).
+  Jika dua-duanya gagal bersamaan, masalahnya jaringan VPS, bukan probe.
+- **Perbaikan:** butuh akses console/operator VPS — tidak bisa dari jarak jauh
+  saat jaringan mati (chicken-and-egg). Setelah pulih, restart service yang
+  sempat degradasi (mis. gateway) dan verifikasi ulang.
+
+### Jebakan systemd pada unit SSH
+- `%` di dalam unit file adalah specifier systemd — tulis `%%h %%p` agar ssh
+  menerima `%h %p` untuk ProxyCommand.
+- Di container tanpa user bus (`systemctl --user` gagal "No medium found"),
+  pakai **system service**, bukan user service; `login linger` tidak relevan.
+- Service di `/etc/systemd/system/` bisa hilang saat VM diganti total —
+  monitoring berkala (cron) tetap diperlukan sebagai pengaman.
