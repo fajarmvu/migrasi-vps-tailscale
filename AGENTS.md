@@ -147,3 +147,24 @@ Gunakan token status yang sama seperti README agar konsisten:
   sering "membangunkan" jalur tersebut kembali — korelasi ini mudah dikira
   kausalitas, jadi uji dengan kontrol: biarkan auto-recovery jalan tanpa
   intervensi manual, lihat apakah pulih sendiri.
+
+### Wake theory — TERBUKTI (2026-10-08)
+- **Observasi:** chat ke bot Telegram yang jalan di VPS memulihkan SSH yang
+  mati — berulang kali, termasuk saat relay 3130 mati total (~23:38 WIB).
+- **Mekanisme:** pesan masuk → bot di VPS membalas → traffic outbound dari
+  VPS lewat Tailscale → jalur/relay "bangun" → SSH nyambung lagi (<1 menit).
+- **Kontrol negatif:** kirim pesan via Bot API dari sisi client SAJA tidak
+  memulihkan — karena tidak menghasilkan traffic dari sisi VPS. Harus ada
+  traffic yang keluar DARI VPS.
+- **Solusi permanen (auto-wake):** systemd timer di VPS tiap 2 menit
+  menjalankan script keepwarm (TCP SYN + tailscale ping ke IP tailnet VM)
+  — jalur tidak pernah idle cukup lama untuk tidur. Tidak perlu chat manual
+  lagi. Lihat `tailnet-keepwarm.sh` + `tailnet-keepwarm.timer`.
+
+### Relay 3130 mati total (bukan kredensial)
+- **Gejala:** `Connection closed by UNKNOWN port 65535` TAPI proxy HTTPS
+  biasa (port 3128) normal — curl via proxy return 401 (bukti kredensial
+  valid). Test langsung ke port 3130: koneksi diterima tapi respons kosong.
+- **Artinya:** relay tailnet di sisi runtime mati/tidak respons — bukan
+  masalah kredensial, bukan masalah VPS. Tidak bisa diperbaiki dari sisi
+  client selain menunggu atau memicu traffic dari sisi VPS (wake).
