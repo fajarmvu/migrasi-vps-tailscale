@@ -96,3 +96,33 @@ Gunakan token status yang sama seperti README agar konsisten:
   pakai **system service**, bukan user service; `login linger` tidak relevan.
 - Service di `/etc/systemd/system/` bisa hilang saat VM diganti total —
   monitoring berkala (cron) tetap diperlukan sebagai pengaman.
+
+### Kredensial egress proxy muter (rotate)
+- **Gejala:** SSH via proxy gagal dengan `Connection closed by UNKNOWN port
+  65535`; pola berulang kira-kira tiap 1 jam; VPS sendiri hidup (bot Telegram
+  masih bisa dihubungi) dan Tailscale masih me-list node-nya.
+- **Penyebab:** kredensial proxy egress dirotasi berkala. File env statis
+  (mis. `HTTPS_PROXY=...` yang ditulis sekali) menjadi basi; setiap reconnect
+  SSH gagal auth sehingga relay menutup CONNECT tanpa respon.
+- **Perbaikan:** jangan andalkan file statis — refresh kredensial dari
+  environment live di setiap cek berkala; kalau isi file berubah dan service
+  SSH persistent sedang crash-loop, restart service agar memakai kredensial
+  baru. Pola outage 2026-10-08: 08:24, 10:49, 16:06, 17:59, 20:59–21:14.
+
+### VM diganti runtime (link mati total)
+- **Gejala:** semua koneksi mati mendadak dalam satu waktu; `uptime` VM kecil
+  (baru boot); file di `/etc/systemd/system/` hilang.
+- **Penyebab:** runtime mengganti VM secara berkala; `/etc/` tidak persisten,
+  hanya home directory yang selamat.
+- **Perbaikan:** simpan template unit di direktori persisten (mis. workspace);
+  setiap run monitoring cek keberadaan unit file dan bangun ulang service dari
+  template bila hilang (`daemon-reload` + `enable --now`). Ini self-healing,
+  tidak perlu alert ke manusia.
+
+### "Sleep" vs outage — cara membedakan
+- Kalau VPS masih bisa dihubungi lewat jalur independen (mis. bot Telegram
+  dibalas) tapi SSH via Tailscale mati → yang tidur hanya jalur Tailscale/
+  relay, bukan VPS-nya. Traffic outbound dari VPS (mis. membalas chat)
+  sering "membangunkan" jalur tersebut kembali — korelasi ini mudah dikira
+  kausalitas, jadi uji dengan kontrol: biarkan auto-recovery jalan tanpa
+  intervensi manual, lihat apakah pulih sendiri.
