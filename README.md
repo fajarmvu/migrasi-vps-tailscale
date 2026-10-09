@@ -54,7 +54,36 @@ Password, token bot, API key, private key SSH, cookie, atau isi lengkap berkas r
 - Bot harus meminta izin sebelum menghentikan layanan, melakukan reboot, mengubah firewall, atau menghapus data.
 
 ### Daftar isi singkat
-FaseHasil1-2Persiapan dan Tailscale tersambung3-5SSH, inventaris, dan salinan awal siap6-7Cutover, verifikasi, dan finalisasiDaruratRollback tanpa dual-activeIkuti urutan; jangan melompati tahap verifikasi02
+FaseHasil1-2Persiapan dan Tailscale tersambung3-5SSH, inventaris, dan salinan awal siap6-7Cutover, verifikasi, dan finalisasiDaruratRollback tanpa dual-activeIkuti urutan; jangan melompati tahap verifikasi
+### Runbook mandiri: sisi VPS Muse
+
+Seluruh perintah di bawah dijalankan di sisi Muse SAJA, berurutan, tanpa menunggu sisi Cue. Sisi Cue dikerjakan terpisah oleh Manus.
+
+**A. Persiapan & audit (baca-saja)**
+1. Audit mesin secara baca-saja: hostname, OS, arsitektur, CPU, RAM, disk, uptime; semua service aktif; port; direktori aplikasi, database, config, data persisten; cron, timer, watchdog, tunnel, bot polling; versi runtime; cara backup dan rollback. Jangan menghentikan service, jangan mengubah firewall, jangan reboot, jangan tampilkan rahasia.
+
+**B. Tailscale**
+2. Pasang/aktifkan Tailscale, hostname jelas (mis. `vm-muse`). Jika perlu tautan persetujuan, kirim ke user dan berhenti sampai disetujui. Aktifkan autostart. Laporkan nama node, IP Tailscale, status koneksi, hasil netcheck.
+3. Setelah dapat nama+IP Tailscale sisi Cue dari user: pastikan target terlihat di `tailscale status`, lalu Tailscale ping ke nama dan IP tersebut. Jangan lanjut ke SSH sebelum ping berhasil.
+
+**C. SSH ke Cue**
+4. Buat kunci SSH ed25519 khusus migrasi (jangan timpa kunci lama). Simpan private key hanya di mesin ini, izin aman. Tampilkan HANYA public key + fingerprint untuk diteruskan ke sisi Cue.
+5. Setelah user memberi user+IP Tailscale tujuan: uji SSH, cocokkan fingerprint host. Jalankan hanya pemeriksaan aman: hostname, id, uptime, disk, sudo noninteraktif. Laporkan kesiapan.
+
+**D. Manifest & salinan awal**
+6. Buat manifest migrasi lengkap (service, urutan start/stop, autostart; direktori, data, database, config, env; runtime/paket; port, endpoint, tunnel; cron/timer/watchdog/bot; metode backup DB; estimasi ruang; urutan salin, final sync, verifikasi, rollback). Jangan tampilkan rahasia. Simpan di mesin sumber, kirim ringkasan aman ke user.
+7. Salinan awal via SSH Tailscale (sumber tetap aktif): dry-run dulu; lalu salin aplikasi, data persisten, unit service, config (tanpa cache/log besar/PID/socket); database via snapshot/dump konsisten; tanpa opsi hapus di tujuan; verifikasi file, ukuran, checksum, ownership, izin. Laporkan hasil.
+
+**E. Cutover**
+8. Setelah user memerintah cutover: catat status terakhir, backup final konsisten; hentikan bot polling, scheduler, worker tunggal, tunnel, service aplikasi (urutan aman); pastikan proses berhenti dan port bebas; final sync ke Cue (tanpa hapus backup tujuan); verifikasi data, ownership, permission, checksum. Laporkan `CUTOVER_SUMBER_SIAP` atau `CUTOVER_GAGAL` + titik gagalnya.
+
+**F. Pasca-cutover (sumber pasif)**
+9. Pastikan semua service, tunnel, bot, scheduler, worker, watchdog lama tetap berhenti. Jangan hapus data. Pantau proses yang bangkit otomatis. Laporkan status pasif.
+10. Setelah Cue dinyatakan `CUE_SIAP_PAKAI`: nonaktifkan autostart semua service lama; jangan hapus aplikasi, data, backup, config; pastikan tidak ada proses aktif dan port tidak mendengarkan; simpan catatan rollback + batas retensi. Laporkan `MUSE_PASIF_SIAP_ROLLBACK`.
+
+**G. Darurat rollback (jika Cue gagal)**
+11. Setelah Cue menyatakan `CUE_PASIF_ROLLBACK`: pulihkan layanan sumber dari kondisi terakhir yang konsisten — service inti dulu, uji data+endpoint lokal, lalu tunnel, bot polling, scheduler, worker. Periksa status, port, log, akses publik. Laporkan `MUSE_AKTIF_KEMBALI` jika semua lulus.
+02
 Fase 1 · PersiapanBelum ada perubahan layanan
 
 ## Mulai dengan pemeriksaan aman pada kedua mesin
@@ -250,7 +279,6 @@ Ganti hanya nama MUSE/CUE, hostname, IP Tailscale, user Linux, daftar service, d
 Operasional pasca-migrasiPelajaran lapangan 2026-10-08 s.d. 2026-10-09
 
 ## Setelah migrasi: menjaga link tetap hidup
-
 ### 1. Wake theory (terbukti 2026-10-08)
 Chat ke bot Telegram yang jalan di VPS memulihkan SSH yang mati — traffic outbound dari VPS "membangunkan" jalur Tailscale/relay (<1 menit). Kirim pesan via Bot API dari sisi client SAJA tidak cukup — harus ada traffic keluar DARI VPS.
 
