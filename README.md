@@ -1,6 +1,6 @@
 Panduan operasional sederhana · Versi 2.0
 
-# Muse Migrate To Cue Manus
+# Migrate Vps Muse to Vps Cue
 Urutan perintah yang dapat langsung disalin ke dua bot: mulai dari persiapan, menghubungkan Tailscale, memindahkan layanan, sampai sistem baru siap digunakan.
 
 > **Untuk agent otomatis:** baca `AGENTS.md` — instruksi eksekusi langsung
@@ -247,4 +247,22 @@ Migrasi selesai jika
 CUE tetap sehat setelah reboot, semua akses bekerja, tidak ada konflik polling, dan MUSE tetap pasif tetapi masih dapat dipakai untuk rollback.
 Cara memakai untuk mesin lain
 Ganti hanya nama MUSE/CUE, hostname, IP Tailscale, user Linux, daftar service, direktori, port, dan metode backup database. Urutan kerja tidak berubah.
+Operasional pasca-migrasiPelajaran lapangan 2026-10-08 s.d. 2026-10-09
+
+## Setelah migrasi: menjaga link tetap hidup
+
+### 1. Wake theory (terbukti 2026-10-08)
+Chat ke bot Telegram yang jalan di VPS memulihkan SSH yang mati — traffic outbound dari VPS "membangunkan" jalur Tailscale/relay (<1 menit). Kirim pesan via Bot API dari sisi client SAJA tidak cukup — harus ada traffic keluar DARI VPS.
+
+### 2. Auto-wake keepwarm
+Systemd timer di VPS tiap 2 menit: TCP SYN + tailscale ping ke IP tailnet VM. Lihat `scripts/tailnet-keepwarm.sh` + `systemd/tailnet-keepwarm.timer`. Jalur tidak pernah idle cukup lama untuk tidur.
+
+### 3. Root cause: host VPS tidur (2026-10-09)
+Komputer host (shared/sandbox) tidur saat idle — 10x `slept ... probably wake from sleep` dalam 24 jam. Sleep TIDAK bisa dimatikan dari dalam VM. Solusi permanen: host yang tidak pernah tidur (VPS beneran / STB Armbian).
+
+### 4. Wake via bot Telegram platform
+Satu-satunya jalur ke operator saat link mati: bot Telegram resmi mereka. Alur: link DOWN → kirim pesan ke bot minta cek/bangunkan VM → tunggu ~60 detik → probe ulang. Maks 1x per outage agar tidak spam.
+
+### 5. Monitor token-free (solusi final, 2026-10-09)
+Cron agent AI tiap 5 menit = 288 run/hari — boros token. Pengganti: systemd timer tiap 2 menit + script bash (probe SSH, state di file, self-heal) + Telethon untuk kirim wake-up via akun Telegram user (tanpa browser, tanpa AI). Nol token AI untuk monitoring. Lihat `token-free-monitor/README.md`.
 Panduan praktis migrasi dua bot · Versi 2.011
