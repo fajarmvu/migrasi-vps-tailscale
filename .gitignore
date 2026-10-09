@@ -3,3 +3,4 @@
 .env
 *.tunnel-key
 __pycache__/
+config.env

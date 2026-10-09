@@ -1,0 +1,10 @@
+[Unit]
+Description=Keep Tailscale path warm (auto-wake)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/hatch/workspace/hermuse/tailnet-keepwarm.sh
+
+[Install]
+WantedBy=multi-user.target

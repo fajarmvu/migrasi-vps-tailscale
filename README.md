@@ -1,7 +1,11 @@
 Panduan operasional sederhana · Versi 2.0
 
-# Migrasi VM/VPS dengan Bot MUSE dan Bot CUE
+# Muse Migrate To Cue Manus
 Urutan perintah yang dapat langsung disalin ke dua bot: mulai dari persiapan, menghubungkan Tailscale, memindahkan layanan, sampai sistem baru siap digunakan.
+
+> **Untuk agent otomatis:** baca `AGENTS.md` — instruksi eksekusi langsung
+> (isi `config.env`, jalankan `scripts/check-prereqs.sh`, ikuti fase berurutan).
+> README ini adalah panduan mode manusia (dua bot + perantara).
 Bot MUSE
 mengelola mesin lama
 →
