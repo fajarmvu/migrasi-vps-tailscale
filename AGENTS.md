@@ -118,17 +118,18 @@ Gunakan token status yang sama seperti README agar konsisten:
 - **Perbaikan:** selalu tulis dengan format `VAR=value`; tambahkan fallback
   di helper proxy agar membaca env file langsung dan menerima kedua format.
 
-### Monitoring hemat token (cron agent → hook)
-- Cron yang menjalankan agent AI tiap 5 menit untuk cek rutin menghabiskan
-  token inferensi — 288 run/hari walaupun semua sehat.
-- **Pola hemat:** ganti dengan hook — script bash ringan (polling tanpa
-  token) yang hanya membangunkan agent saat ada kejadian (link down,
-  recovery, reconnect, restart service). Monitoring tetap tiap 5 menit,
-  token terpakai hanya saat benar-benar ada yang perlu ditangani.
-- Syarat: pisahkan logika "deteksi" (bash deterministik, state di file)
-  dari logika "notifikasi/keputusan" (agent). Kalau hook terbukti tidak
-  efektif (miss event, berhenti polling), kembalikan ke cron agent —
-  efektivitas di atas penghematan.
+### Monitoring token-free (Telethon + systemd, 2026-10-09)
+- Cron agent AI tiap 5 menit = 288 run/hari walau sehat — boros token.
+  Hook pernah dicoba tapi jalur notifikasi gagal total (zero notification).
+- **Solusi:** systemd timer tiap 2 menit jalanin script bash
+  (`token-free-monitor/tg-link-monitor.sh`) — probe SSH + state di file,
+  nol token AI. Lihat `token-free-monitor/README.md`.
+- Wake-up ke bot platform via **Telethon** (MTProto, akun user langsung) —
+  tidak perlu browser/AI. Sesi diautentikasi sekali via `auth.py`
+  (butuh `api_id`/`api_hash` dari my.telegram.org + kode login).
+- MTProto TCP langsung sering diblokir egress — script otomatis route via
+  `$HTTPS_PROXY` (butuh `python-socks`).
+- File rahasia (`tg-api.conf`, `gladis.session`) chmod 600, **jangan di-commit**.
 
 ### VM diganti runtime (link mati total)
 - **Gejala:** semua koneksi mati mendadak dalam satu waktu; `uptime` VM kecil

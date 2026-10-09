@@ -1,0 +1,16 @@
+[Unit]
+Description=Token-free VPS link monitor (SSH probe + Telegram wake-up)
+After=network-online.target vps-cue-ssh.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=hatch
+EnvironmentFile=/home/hatch/.config/vps-ssh-proxy-env
+ExecStart=/bin/bash /home/hatch/workspace/hermuse/tg-monitor/tg-link-monitor.sh
+# Do not spam logs on success; script logs to its own file
+StandardOutput=null
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
