@@ -289,7 +289,7 @@ Systemd timer di VPS tiap 2 menit: TCP SYN + tailscale ping ke IP tailnet VM. Li
 Komputer host (shared/sandbox) tidur saat idle — 10x `slept ... probably wake from sleep` dalam 24 jam. Sleep TIDAK bisa dimatikan dari dalam VM. Solusi permanen: host yang tidak pernah tidur (VPS beneran / STB Armbian).
 
 ### 4. Wake via bot Telegram platform
-Satu-satunya jalur ke operator saat link mati: bot Telegram resmi mereka. Alur: link DOWN → kirim pesan ke bot minta cek/bangunkan VM → tunggu ~60 detik → probe ulang. Maks 1x per outage agar tidak spam.
+Satu-satunya jalur ke operator saat link mati: bot Telegram resmi mereka. Alur: link DOWN → kirim pesan ke bot minta cek/bangunkan VM → tunggu ~60 detik → probe ulang; kirim ulang tiap 10 menit selama masih down (perintah user 2026-10-09 — jangan biarkan mati tanpa upaya).
 
 ### 5. Monitor token-free (solusi final, 2026-10-09)
 Cron agent AI tiap 5 menit = 288 run/hari — boros token. Pengganti: systemd timer tiap 2 menit + script bash (probe SSH, state di file, self-heal) + Telethon untuk kirim wake-up via akun Telegram user (tanpa browser, tanpa AI). Nol token AI untuk monitoring. Lihat `token-free-monitor/README.md`.

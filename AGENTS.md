@@ -141,6 +141,24 @@ Gunakan token status yang sama seperti README agar konsisten:
   template bila hilang (`daemon-reload` + `enable --now`). Ini self-healing,
   tidak perlu alert ke manusia.
 
+### VM pengganti bisa jalan sebagai root (bukan user lama)
+- **Gejala (2026-10-10):** setelah VM diganti runtime, semua path berbasis
+  `$HOME` rusak — service monitoring crash karena direktori tidak ada,
+  padahal home directory lama masih utuh.
+- **Penyebab:** VM baru berjalan sebagai `root` (tidak ada user lama,
+  `HOME=/root`), sedangkan data persisten ada di `/home/<user-lama>/`.
+- **Perbaikan:** buat symlink sekali setelah pergantian VM:
+  `/root/workspace -> /home/<user-lama>/workspace` dan
+  `/root/.config/<nama-env> -> /home/<user-lama>/.config/<nama-env>`
+  (agar file kredensial/konfigurasi tetap ditemukan). Atau jalankan
+  monitoring dengan `User=` eksplisit di unit systemd.
+- **Catatan TZ:** VM pengganti biasanya tidak punya local timezone (jam
+  sistem UTC). Selalu tulis dan parse timestamp dengan `TZ=Asia/Jakarta
+  date ...` yang konsisten — bug nyata: timestamp ditulis dengan
+  `TZ=Asia/Jakarta` tapi di-parse dengan `date -d` sistem (UTC) sehingga
+  epoch melompat 7 jam ke masa depan dan logika "kirim ulang tiap 10 menit"
+  tidak pernah terpicu.
+
 ### "Sleep" vs outage — cara membedakan
 - Kalau VPS masih bisa dihubungi lewat jalur independen (mis. bot Telegram
   dibalas) tapi SSH via Tailscale mati → yang tidur hanya jalur Tailscale/

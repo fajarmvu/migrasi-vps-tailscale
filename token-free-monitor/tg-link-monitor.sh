@@ -5,7 +5,8 @@
 # Flow:
 #   1. SSH probe to Muse By Cue (single attempt, fast timeout).
 #   2. Track state in files (up/down, streak).
-#   3. On first DOWN: send wake-up via Telethon (wake.py) to @manus_ai_agent_bot.
+#   3. On DOWN: send wake-up via Telethon (wake.py) to @manus_ai_agent_bot
+#      on first detection, re-send every 10 min while still down.
 #   4. On recovery: log it.
 #   5. User notifications go via notify.sh (Telegram Bot API, token-free).
 #
@@ -69,10 +70,24 @@ else
   echo "down" > "$HF/vps-link-state"
   echo "$streak" > "$HF/vps-link-down-streak"
   log "down (streak=$streak, err=${result:0:60})"
-  # Wake-up on FIRST down detection (no waiting for streak 2)
-  if [ ! -f "$HF/tg-wake-sent" ]; then
-    log "WAKE: sending wake-up via Telethon to @manus_ai_agent_bot"
-    if "$BASE/venv/bin/python" "$BASE/wake.py" "Hi, my sandbox VM named 'Muse' on the Cue platform seems to be asleep — SSH over Tailscale is unreachable (probe: ${result:0:50}). Tailscale logs previously showed 'slept ... probably wake from sleep'. Could you please check/wake it? Thank you!" >> "$LOG" 2>&1; then
+  # Wake-up via Telethon to @manus_ai_agent_bot.
+  # Fajar 2026-10-09: re-send every 10 min while still down (don't leave it dead).
+  # tg-wake-sent holds the timestamp of the last sent wake-up.
+  last_wake=""
+  [ -f "$HF/tg-wake-sent" ] && last_wake=$(cat "$HF/tg-wake-sent" 2>/dev/null || echo "")
+  now_epoch=$(date +%s)
+  last_epoch=0
+  if [ -n "$last_wake" ]; then
+    # tg-wake-sent is written with TZ=Asia/Jakarta (see line above), so it must
+    # be parsed in the same TZ; system clock is UTC (VM replacement sets no
+    # local TZ), otherwise the epoch lands 7h in the future and the 10-min
+    # re-send never fires.
+    last_epoch=$(TZ=Asia/Jakarta date -d "$last_wake" +%s 2>/dev/null || echo 0)
+  fi
+  elapsed=$((now_epoch - last_epoch))
+  if [ -z "$last_wake" ] || [ "$elapsed" -ge 600 ]; then
+    log "WAKE: sending wake-up via Telethon to @manus_ai_agent_bot (elapsed ${elapsed}s)"
+    if "$BASE/venv/bin/python" "$BASE/wake.py" "Hi, my sandbox VM named 'Muse' on the Cue platform seems to be asleep — SSH over Tailscale is unreachable (probe: ${result:0:50}, down streak $streak). Tailscale logs previously showed 'slept ... probably wake from sleep'. Could you please check/wake it? Thank you!" >> "$LOG" 2>&1; then
       echo "$(TZ=Asia/Jakarta date '+%F %H:%M')" > "$HF/tg-wake-sent"
       log "WAKE: sent OK"
     else

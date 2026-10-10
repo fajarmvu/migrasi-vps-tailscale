@@ -7,7 +7,7 @@ Monitoring link SSH **tanpa token AI** — 100% bash + Python + systemd.
 ```
 systemd timer (tiap 2 menit)
   → tg-link-monitor.sh (bash: SSH probe + state tracking)
-      → DOWN pertama: wake.py (Telethon → bot platform via akun Telegram user)
+      → DOWN: wake.py (Telethon → bot platform via akun Telegram user; kirim ulang tiap 10 menit selama masih down)
       → DOWN ≥10 mnt: notify.sh (peringatan ke user)
       → UP kembali: notify.sh (notifikasi pulih)
 ```
